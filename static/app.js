@@ -117,7 +117,6 @@ function renderAssumptions(items) {
 function renderSpecification(response) {
   const spec = response.data;
   const overview = spec.project_overview || {};
-  const metadata = response.generation_metadata || {};
   const sectionLinks = [
     ["project-overview", "Overview"],
     ["functional-requirements", "Functional"],
@@ -132,7 +131,6 @@ function renderSpecification(response) {
     <div class="result-head">
       <div><p class="eyebrow">Specification draft</p><h2>${escapeHtml(overview.proposed_name || "Untitled project")}</h2><p class="muted">Review the generated content before using it for development.</p></div>
       <button id="exportBtn" class="btn export" type="button">Export HTML / PDF</button>
-      <div class="result-meta">Backend: ${escapeHtml(metadata.backend || "unknown")}<br />Model: ${escapeHtml(metadata.model || "unknown")}</div>
     </div>
     <nav class="section-nav">${sectionLinks.map(([id, label]) => `<a href="#${id}">${label}</a>`).join("")}</nav>
     ${section("project-overview", "1", "Project Overview", renderOverview(overview))}

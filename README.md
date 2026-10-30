@@ -1,289 +1,279 @@
 # Specora AI
 
-From idea to development-ready specifications.
+> Turn a rough product idea into a reviewable, traceable software specification.
 
-## Vision
+Specora AI is a local-first product discovery assistant. It transforms an
+unstructured idea into a structured specification that a Product Owner,
+stakeholder, or development team can review before implementation begins.
 
-Specora AI helps a client, Product Owner, or development team turn a rough
-product idea into a structured specification that can be reviewed before
-development starts.
+The application is deliberately human-centred: the language model proposes a
+draft, while the user validates assumptions, answers open questions, edits the
+content, and decides what is ready for development.
 
-For example, a user might write:
+## Product preview
 
-> I want to build a gym-room booking application. Customers should be able to
-> see sessions, book a place, pay for a subscription, and receive a
-> confirmation. Managers should be able to manage sessions and bookings.
+### From idea to a structured draft
 
-This description is a useful starting point, but it is not yet precise enough
-for a development team. Specora AI uses an LLM to propose a first structured
-draft, then lets the user inspect, correct, complete, save, and export it.
+![Specora AI interface showing a generated project overview](docs/screenshots/specora-overview.png)
 
-Specora AI is an assistant for product discovery and specification writing. It
-does not replace a Product Owner and does not claim that an LLM-generated draft
-is automatically complete or validated.
+### Traceable requirements and user stories
 
-## What Specora generates
+![Specora AI interface showing functional requirements, user stories, and acceptance criteria](docs/screenshots/specora-traceability.png)
 
-Every project produces six main sections:
+## Why Specora AI
 
-### 1. Project Overview
+Product ideas often begin as a paragraph, a conversation, or a voice note. The
+hard part is turning that input into something precise enough to discuss,
+challenge, test, and build.
 
-Proposed name, concise summary, problem statement, goals, target users, and
-scope boundaries.
-
-### 2. Functional Requirements
-
-The capabilities the product must provide, written as identifiable and
-testable requirements.
-
-### 3. User Stories
-
-Stories organized by feature or user journey, with an actor, an intention, and a
-desired outcome.
-
-### 4. Acceptance Criteria
-
-Observable conditions linked to each relevant user story. Criteria should be
-specific enough to guide implementation and testing.
-
-### 5. Non-Functional Requirements
-
-Relevant quality attributes such as security, performance, accessibility,
-reliability, privacy, compatibility, and maintainability. Unknown items should
-be marked as unknown instead of invented.
-
-### 6. Open Questions & Assumptions
-
-Information that still needs a decision, plus assumptions made to produce the
-draft. This section is central to the human review step.
-
-## Core workflow
+Specora AI helps by making uncertainty visible and by keeping the links between
+the most important specification elements explicit:
 
 ```text
-User idea
-   ↓
-Project creation
-   ↓
-LLM analysis with a versioned structured schema
-   ↓
-Normalization of identifiers and references
-   ↓
-Schema and relationship validation
-   ↓
-Six-section specification draft
-   ↓
-Human review and edits
-   ↓
-Section regeneration when needed
-   ↓
-Local save and Markdown/HTML export
+Product idea
+    ↓
+Structured specification draft
+    ↓
+Human review and editing
+    ↓
+Traceable requirements, stories, and acceptance criteria
+    ↓
+HTML / PDF-ready export
 ```
 
-The original idea is always preserved. Regenerating one section must not
-silently overwrite user edits in unrelated sections.
+## Current capabilities
 
-## MVP goals
+- Generate a structured specification from a free-form product idea.
+- Accept ideas in text or through optional voice transcription.
+- Support OpenAI or an OpenAI-compatible local LLM endpoint.
+- Produce seven reviewable sections in a stable order.
+- Normalize identifiers into traceable prefixes: `FR`, `US`, `AC`, `NFR`, `Q`,
+  and `A`.
+- Preserve relationships from functional requirements to user stories and from
+  user stories to acceptance criteria.
+- Surface open questions and assumptions instead of hiding uncertainty.
+- Export a professional HTML document that can be printed or saved as PDF.
+- Continue to present generation failures as actionable errors rather than
+  rendering an invalid draft.
 
-The first version should allow a user to:
+## Specification output
 
-- create a project from a free-form idea;
-- choose or detect the output language;
-- generate a structured specification with an LLM;
-- review and edit each section;
-- regenerate one section while preserving the rest;
-- see assumptions and open questions clearly;
-- save and reopen projects locally;
-- export a project as Markdown or HTML;
-- continue editing if the LLM is unavailable.
+Every generated draft contains the following sections:
 
-## Non-goals for the MVP
+| # | Section | Purpose |
+| --- | --- | --- |
+| 1 | Project Overview | Name, summary, problem, goals, and target users |
+| 2 | Functional Requirements | Testable product capabilities with actors and priorities |
+| 3 | User Stories | User-centred outcomes linked to requirements |
+| 4 | Acceptance Criteria | Observable conditions linked to user stories |
+| 5 | Non-Functional Requirements | Quality attributes such as accessibility, security, and performance |
+| 6 | Open Questions | Decisions that still require clarification |
+| 7 | Assumptions | Explicit inferences that require human validation |
 
-Specora is not initially intended to:
+The export template intentionally does not display the internal
+`project_overview.scope.in_scope` or `project_overview.scope.out_of_scope`
+fields.
 
-- generate a complete application automatically;
-- replace product discovery or stakeholder validation;
-- manage developer tasks or project execution;
-- provide multi-user collaboration and permissions;
-- make voice transcription part of the core workflow.
+## Traceability model
 
-Voice input can be added later as an input method, but the central domain is
-idea-to-specification rather than speech-to-intent classification.
+The application owns identifier normalization after the LLM response is
+received. This protects the relationship graph even when a model returns simple
+numeric IDs or inconsistent formats.
 
-## Target architecture
+| Entity | Identifier example | Relationship |
+| --- | --- | --- |
+| Functional requirement | `FR-001` | A capability the product must provide |
+| User story | `US-001` | References one or more functional requirements |
+| Acceptance criteria group | `AC-001` | References its user story through `user_story_id` |
+| Non-functional requirement | `NFR-001` | A quality or operational constraint |
+| Open question | `Q-001` | A decision requiring clarification |
+| Assumption | `A-001` | An explicit statement requiring review |
 
-### Frontend
+In the HTML/PDF-ready export, related identifiers are rendered as visible
+links, so a reviewer can move between a story and its requirements or between
+acceptance criteria and the story they verify.
 
-Plain HTML, CSS, and JavaScript. The first interface should prioritize a clear
-writing and review experience over a complex dashboard:
+## Architecture
 
-- idea input;
-- generation state and errors;
-- section navigation;
-- editable specification content;
-- visible assumptions and questions;
-- save, reopen, and export actions.
+Specora AI is intentionally small and modular:
 
-### Backend
-
-FastAPI provides the HTTP API and coordinates the domain services:
-
-- project and specification models;
-- input validation;
-- LLM orchestration;
-- in-memory draft handling;
-- partial regeneration;
-- Markdown and HTML export.
-
-The LLM provider must be isolated behind an adapter so that a cloud provider or
-a local model can be selected through configuration without changing the API
-contract.
-
-### Draft handling
-
-The current application keeps the generated draft in memory while it is being
-reviewed. HTML/PDF export is explicit and user-triggered. There is no server-
-side project store in this version; fixtures and tests use JSON-shaped data.
-
-## Canonical specification shape
-
-The backend should own one versioned schema shared by the API, LLM validation,
-exporters, and tests. A project should include at least:
-
-```json
-{
-  "id": "local-project-id",
-  "title": "Proposed project name",
-  "raw_idea": "Original idea written by the user",
-  "language": "en",
-  "status": "review",
-  "sections": {
-    "project_overview": {},
-    "functional_requirements": [],
-    "user_stories": [],
-    "acceptance_criteria": [],
-    "non_functional_requirements": [],
-    "open_questions_assumptions": {}
-  },
-  "generation_metadata": {
-    "model": "configured-model",
-    "schema_version": "1.0",
-    "generated_at": "2026-01-01T00:00:00Z"
-  }
-}
+```text
+Browser UI
+  ├── Idea input and sample prompts
+  ├── Optional MediaRecorder voice input
+  ├── Section-by-section specification view
+  └── HTML / PDF-ready export action
+       │
+       ▼
+FastAPI application
+  ├── API boundary and request validation
+  ├── Specification response shaping
+  ├── LLM orchestration and validation
+  ├── Speech-to-text adapter
+  └── Export renderer and print stylesheet
 ```
 
-This is an illustrative shape, not a final implementation contract. The exact
-schema should be formalized before building the generation endpoint.
+### Main modules
 
-## Suggested API surface
+| Path | Responsibility |
+| --- | --- |
+| `main.py` | FastAPI application, routes, and API request models |
+| `understand.py` | Prompt, canonical JSON schema, LLM adapter, ID normalization, and relationship validation |
+| `actions.py` | Response shaping and section metadata |
+| `stt.py` | Optional speech-to-text adapter |
+| `exports.py` | Safe HTML rendering for the export template |
+| `static/index.html` | Browser interface and application styling |
+| `static/app.js` | Generation, voice recording, review rendering, and export actions |
+| `static/specification-export.html` | Professional HTML/PDF-ready document template |
+| `test_exports.py` | Deterministic export and traceability checks |
 
-The initial API can expose:
+## Run locally
+
+### 1. Install dependencies
+
+Create a virtual environment and install the project requirements:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+### 2. Configure the application
+
+Copy the example environment file:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+For cloud generation, set `OPENAI_API_KEY` and keep:
+
+```env
+UNDERSTAND_BACKEND=openai
+```
+
+For a local OpenAI-compatible LLM server, use:
+
+```env
+UNDERSTAND_BACKEND=local
+LOCAL_LLM_BASE_URL=http://localhost:8080/v1
+LOCAL_LLM_MODEL=qwen2.5-1.5b-instruct
+```
+
+The local server must be running before a generation request is made.
+
+### 3. Start Specora AI
+
+```powershell
+uvicorn main:app --reload
+```
+
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in a browser.
+
+## Voice input
+
+Voice input is an optional input adapter, not a separate product workflow.
+
+1. Select **Record idea**.
+2. Allow microphone access in the browser.
+3. Speak the product idea.
+4. Select **Stop recording**.
+5. Review the transcription in the idea field.
+6. Generate the specification from the reviewed text.
+
+The transcription backend is configured independently from the understanding
+backend:
+
+```env
+TRANSCRIBE_BACKEND=openai
+```
+
+For local transcription, configure `TRANSCRIBE_BACKEND=local` and the Whisper
+settings in `.env.example`.
+
+## Export
+
+After generation, select **Export HTML / PDF**. Specora opens a professional
+document with:
+
+- a clear document header and source idea;
+- the seven sections in the requested order;
+- readable requirement, story, and acceptance-criteria cards;
+- visible traceability links between `FR`, `US`, and `AC` identifiers;
+- print-specific page breaks and layout rules.
+
+Use **Print / Save as PDF** in the export document to create a PDF from the
+browser's native print dialog. The same template is used for the on-screen HTML
+document and the PDF print view.
+
+## API surface
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
-| `POST` | `/api/projects` | Create a project from an idea |
-| `GET` | `/api/projects` | List local projects |
-| `GET` | `/api/projects/{project_id}` | Read a project |
-| `PATCH` | `/api/projects/{project_id}` | Save user edits |
-| `POST` | `/api/projects/{project_id}/generate` | Generate or regenerate a draft |
-| `POST` | `/api/projects/{project_id}/sections/{section}/regenerate` | Regenerate one section |
-| `GET` | `/api/projects/{project_id}/export?format=markdown` | Export Markdown or HTML |
+| `GET` | `/api/health` | Check application and provider configuration |
+| `GET` | `/api/specification-sections` | Return the canonical section labels |
+| `POST` | `/api/specifications/generate` | Generate a structured specification from an idea |
+| `POST` | `/api/specifications/export` | Render the current specification as HTML |
+| `POST` | `/api/transcribe` | Transcribe an uploaded voice recording |
 
-The current review interface also exposes `POST /api/specifications/export`.
-It accepts the current canonical draft and returns a print-optimized HTML
-document. Use `Print / Save as PDF` in that document to create a PDF from the
-browser's native print dialog. The export keeps requirement, user-story, and
-acceptance-criteria IDs visible and linked, and intentionally omits
-`project_overview.scope.in_scope` and `project_overview.scope.out_of_scope`.
+Example generation request:
 
-The API is provisional and may be adjusted during implementation, but full
-generation and partial regeneration should remain separate operations.
-
-## LLM behavior requirements
-
-The generation layer should:
-
-- return structured JSON validated against the canonical schema;
-- normalize identifiers after generation into stable prefixes such as `FR-001`,
-  `US-001`, `AC-001`, `NFR-001`, `Q-001`, and `A-001`;
-- normalize references such as `user_story_id` and
-  `related_requirement_ids` after identifiers are assigned;
-- validate the normalized document before returning it to the API;
-- preserve uncertainty as assumptions or open questions;
-- produce traceable identifiers for requirements and user stories;
-- generate acceptance criteria that are observable and testable;
-- avoid inventing business decisions without marking them as assumptions;
-- record model, prompt/schema version, timestamp, and failures;
-- preserve the last valid draft if a request fails.
-
-### Normalization and validation
-
-The LLM is responsible for proposing the content, but the application owns the
-document's identifiers and relationships. After the LLM response, Specora
-normalizes each generated item into a section-specific identifier:
-
-```text
-Functional Requirements       FR-001
-User Stories                  US-001
-Acceptance Criteria           AC-001
-Non-Functional Requirements   NFR-001
-Open Questions                Q-001
-Assumptions                   A-001
+```json
+{
+  "raw_idea": "I want to build a gym-room booking application."
+}
 ```
 
-References are rewritten at the same time. For example, a criterion referring
-to `user_story_id: "1"` becomes `user_story_id: "US-001"`. Only after this
-normalization step does the backend validate duplicate identifiers and broken
-relationships. This makes the system resilient when a model uses simple or
-repeated numeric IDs.
+The generation response contains the original idea, the structured `data`
+object, and generation metadata used internally by the application.
+
+## Quality and validation
+
+Run the deterministic export tests:
+
+```powershell
+python -m unittest discover -v
+```
+
+Validate the browser JavaScript syntax:
+
+```powershell
+node --check static/app.js
+```
+
+The export checks verify that:
+
+- all seven sections appear in the requested order;
+- internal scope fields are not rendered;
+- requirement, story, and acceptance-criteria IDs are preserved;
+- relationship links remain present;
+- user-provided text is safely escaped for HTML.
+
+## Product boundaries
+
+Specora AI is a review assistant, not an automatic product authority. It does
+not claim that a generated specification is complete, correct, or formally
+validated.
+
+The current version does not provide:
+
+- automatic coding or repository generation;
+- project-task execution;
+- multi-user collaboration or permissions;
+- automatic approval of generated content;
+- a guarantee that LLM output is factually correct.
+
+Generated content must be reviewed by a human before it is used for planning or
+development.
 
 ## Project status
 
-Specora AI is an early-stage product. The product documentation in this README
-and the rules in `AGENTS.md` define the intended direction for the application.
+Specora AI is an early-stage product with a working idea-to-specification flow,
+optional voice input, traceable structured output, and HTML/PDF-ready export.
+The product is intentionally focused on making the review step clear,
+observable, and useful.
 
-## Development roadmap
+## License
 
-### Phase 1 — Foundation
-
-- define the canonical Pydantic/domain schema;
-- create the FastAPI application boundary;
-- add in-memory draft handling;
-- add health and project CRUD endpoints;
-- create the minimal HTML review interface.
-
-### Phase 2 — Specification generation
-
-- version the system prompt and JSON schema;
-- implement the LLM adapter;
-- validate generated drafts and keep the last valid draft during the session;
-- expose generation progress and errors;
-- add section-level regeneration.
-
-### Phase 3 — Review and export
-
-- improve editing and traceability in the UI;
-- distinguish generated content from user edits where practical;
-- implement Markdown and HTML exporters;
-- add project version history and recovery of the last valid draft.
-
-### Phase 4 — Hardening
-
-- add automated tests for generation failures and malformed output;
-- improve accessibility and responsive layout;
-- add import/export fixtures;
-- evaluate optional local LLM support;
-- assess future voice input without coupling it to the core domain.
-
-## Definition of done for an MVP draft
-
-A generated project is usable when its goals and target users are explicit,
-requirements are identifiable, user stories are linked to verifiable acceptance
-criteria, relevant non-functional concerns are present or marked unknown, and
-assumptions and open questions are visible. The user must be able to edit, save,
-reopen, and export the result.
-
-## License and status
-
-Specora AI is an early-stage project. Product decisions, the schema, and the API
-may evolve as the review workflow is tested with real product ideas.
+No public license has been selected yet.
