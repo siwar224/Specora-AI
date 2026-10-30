@@ -11,6 +11,8 @@ const els = {
   healthText: document.getElementById("healthText"),
 };
 
+let lastSpecificationResponse = null;
+
 const SAMPLES = [
   "I want to build a gym-room booking application. Customers should browse sessions, reserve a spot, pay for their subscription, and receive a confirmation. Managers should be able to manage sessions and bookings.",
   "I want a platform that helps small businesses track expenses, import invoices, and receive alerts when a budget is exceeded.",
@@ -128,6 +130,7 @@ function renderSpecification(response) {
   els.resultContent.innerHTML = `
     <div class="result-head">
       <div><p class="eyebrow">Specification draft</p><h2>${escapeHtml(overview.proposed_name || "Untitled project")}</h2><p class="muted">Review the generated content before using it for development.</p></div>
+      <button id="exportBtn" class="btn export" type="button">Export HTML / PDF</button>
       <div class="result-meta">Backend: ${escapeHtml(metadata.backend || "unknown")}<br />Model: ${escapeHtml(metadata.model || "unknown")}</div>
     </div>
     <nav class="section-nav">${sectionLinks.map(([id, label]) => `<a href="#${id}">${label}</a>`).join("")}</nav>
@@ -141,6 +144,44 @@ function renderSpecification(response) {
   `;
   els.emptyState.hidden = true;
   els.resultContent.hidden = false;
+  document.getElementById("exportBtn").addEventListener("click", exportSpecification);
+}
+
+async function exportSpecification() {
+  if (!lastSpecificationResponse) return;
+  const exportWindow = window.open("about:blank", "_blank");
+  if (!exportWindow) {
+    setStatus("Allow pop-ups to open the export document.", true);
+    return;
+  }
+
+  const button = document.getElementById("exportBtn");
+  if (button) button.disabled = true;
+  setStatus("Preparing the export…");
+  try {
+    const response = await fetch("/api/specifications/export", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        raw_idea: lastSpecificationResponse.raw_idea,
+        data: lastSpecificationResponse.data,
+        generation_metadata: lastSpecificationResponse.generation_metadata || {},
+      }),
+    });
+    if (!response.ok) {
+      const payload = await response.json();
+      throw new Error(payload.error || "Export failed.");
+    }
+    exportWindow.document.open();
+    exportWindow.document.write(await response.text());
+    exportWindow.document.close();
+    setStatus("Export ready. Use Print / Save as PDF in the new tab.");
+  } catch (error) {
+    exportWindow.close();
+    setStatus(error.message, true);
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
 
 function setStatus(message, isError = false) {
@@ -168,6 +209,7 @@ async function generateSpecification() {
     if (!response.ok || payload.type === "error") {
       throw new Error(payload.error || "Specification generation failed.");
     }
+    lastSpecificationResponse = payload;
     renderSpecification(payload);
     setStatus("Specification generated. Review the questions and assumptions.");
   } catch (error) {

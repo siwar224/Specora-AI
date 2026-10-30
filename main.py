@@ -10,14 +10,16 @@ not mixed with the specification-generation contract.
 
 import os
 import tempfile
+from typing import Any
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import actions
+import exports
 import stt
 import understand
 
@@ -35,6 +37,14 @@ class SpecificationRequest(BaseModel):
     """The raw product idea submitted by the user."""
 
     raw_idea: str = Field(..., min_length=1, description="The user's product idea")
+
+
+class SpecificationExportRequest(BaseModel):
+    """The current draft and context submitted to the export renderer."""
+
+    raw_idea: str = Field(default="", description="The original product idea")
+    data: dict[str, Any] = Field(..., description="The canonical Specora specification")
+    generation_metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +86,28 @@ def generate_specification(req: SpecificationRequest) -> JSONResponse:
         )
 
     return JSONResponse(actions.build_specification_response(req.raw_idea, result))
+
+
+@app.post("/api/specifications/export")
+def export_specification(req: SpecificationExportRequest) -> Response:
+    """Render the current draft as a browser- and PDF-printable HTML document."""
+    try:
+        understand._validate_specification(req.data)
+    except ValueError as exc:
+        return JSONResponse(
+            {"type": "error", "stage": "export", "error": f"Invalid specification: {exc}"},
+            status_code=422,
+        )
+
+    document = exports.render_specification_html(
+        req.data,
+        raw_idea=req.raw_idea,
+        generation_metadata=req.generation_metadata,
+    )
+    return HTMLResponse(
+        content=document,
+        headers={"Content-Disposition": 'inline; filename="specora-specification.html"'},
+    )
 
 
 # ---------------------------------------------------------------------------

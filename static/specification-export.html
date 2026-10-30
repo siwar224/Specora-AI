@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{TITLE}} · Specora AI</title>
+    <style>
+      :root {
+        --ink: #182238;
+        --muted: #65718a;
+        --line: #dce3ee;
+        --line-strong: #cbd5e4;
+        --paper: #ffffff;
+        --canvas: #eef2f7;
+        --accent: #5b4ed7;
+        --accent-soft: #eeecff;
+        --teal: #087c78;
+        --teal-soft: #e4f7f4;
+        --amber: #8a5b00;
+        --amber-soft: #fff4d6;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--canvas);
+        font: 14px/1.6 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      a { color: var(--accent); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      p, h1, h2, h3 { margin-top: 0; }
+      h1 { margin-bottom: 9px; font-size: clamp(2rem, 4vw, 3.45rem); line-height: 1.06; letter-spacing: -.055em; }
+      h2 { margin-bottom: 0; font-size: 1.35rem; line-height: 1.2; letter-spacing: -.025em; }
+      h3 { margin-bottom: 0; font-size: 1rem; line-height: 1.35; }
+
+      .screen-toolbar {
+        display: flex;
+        justify-content: flex-end;
+        width: min(1020px, calc(100% - 36px));
+        margin: 0 auto;
+        padding: 22px 0 0;
+      }
+      .print-button {
+        border: 1px solid var(--line-strong);
+        border-radius: 9px;
+        padding: 9px 14px;
+        color: var(--ink);
+        background: var(--paper);
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+        box-shadow: 0 4px 14px rgba(25, 39, 66, .08);
+      }
+      .print-button:hover { border-color: var(--accent); color: var(--accent); }
+      .document {
+        width: min(1020px, calc(100% - 36px));
+        margin: 18px auto 44px;
+        padding: 58px 70px 64px;
+        background: var(--paper);
+        box-shadow: 0 18px 55px rgba(25, 39, 66, .12);
+      }
+      .document-header { border-bottom: 2px solid var(--ink); padding-bottom: 30px; }
+      .brand-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 62px; }
+      .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); font-size: .77rem; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
+      .brand-mark { display: grid; place-items: center; width: 29px; height: 29px; border-radius: 8px; color: #fff; background: var(--accent); font-size: .9rem; letter-spacing: 0; }
+      .document-kind { color: var(--muted); font-size: .72rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+      .eyebrow, .field-label { margin-bottom: 8px; color: var(--accent); font-size: .68rem; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
+      .subtitle { max-width: 720px; margin-bottom: 0; color: var(--muted); font-size: 1.08rem; }
+      .meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 28px; }
+      .meta-card { padding: 13px 15px; border: 1px solid var(--line); border-radius: 9px; background: #fafbfd; }
+      .meta-card strong { display: block; overflow: hidden; font-size: .9rem; text-overflow: ellipsis; white-space: nowrap; }
+      .source-idea { margin: 26px 0 0; padding: 16px 18px; border-left: 3px solid var(--teal); background: var(--teal-soft); }
+      .source-idea p:last-child { margin-bottom: 0; white-space: pre-wrap; }
+      .toc { display: flex; flex-wrap: wrap; gap: 8px; padding: 21px 0 4px; }
+      .toc a { padding: 5px 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: .76rem; font-weight: 700; }
+      .toc a:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+
+      .spec-section { margin-top: 52px; scroll-margin-top: 20px; }
+      .section-heading { display: flex; align-items: flex-start; gap: 13px; margin-bottom: 21px; padding-bottom: 13px; border-bottom: 1px solid var(--line-strong); }
+      .section-number { display: grid; flex: 0 0 auto; place-items: center; width: 30px; height: 30px; border-radius: 8px; color: #fff; background: var(--ink); font-size: .75rem; font-weight: 900; }
+      .overview-lead { display: grid; grid-template-columns: 1.15fr .85fr; gap: 18px; }
+      .lead-copy { margin-bottom: 0; font-size: 1.16rem; line-height: 1.5; }
+      .problem-box { padding: 18px; border-radius: 10px; background: var(--accent-soft); }
+      .problem-box p:last-child { margin-bottom: 0; }
+      .overview-grid { display: grid; grid-template-columns: .8fr 1.2fr; gap: 18px; margin-top: 18px; }
+      .content-block { padding: 18px; border: 1px solid var(--line); border-radius: 10px; }
+      .content-block ul, .criteria-list { margin: 0; padding-left: 20px; }
+      li + li { margin-top: 7px; }
+      .people-grid { display: grid; gap: 10px; }
+      .person-card { padding: 11px 13px; border-left: 3px solid var(--teal); background: #f8fbfb; }
+      .person-heading { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+      .person-card p { margin: 4px 0 0; color: var(--muted); font-size: .88rem; }
+      .small-id { color: var(--teal); font-size: .7rem; font-weight: 900; letter-spacing: .07em; }
+      .record + .record { margin-top: 12px; }
+      .record { padding: 17px 18px; border: 1px solid var(--line); border-radius: 10px; break-inside: avoid; }
+      .record.compact { padding-top: 14px; padding-bottom: 14px; }
+      .record-header, .record-title { display: flex; align-items: flex-start; gap: 10px; }
+      .record-header { justify-content: space-between; }
+      .record-title { min-width: 0; }
+      .record-title h3 { overflow-wrap: anywhere; }
+      .record-index { flex: 0 0 auto; }
+      .id-badge { display: inline-flex; align-items: center; min-height: 24px; padding: 2px 7px; border-radius: 5px; color: var(--accent); background: var(--accent-soft); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .72rem; font-weight: 800; letter-spacing: .02em; }
+      .id-badge:hover { text-decoration: none; background: #e2dfff; }
+      .record-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin: 9px 0 8px; color: var(--muted); font-size: .82rem; }
+      .record > p:last-child { margin-bottom: 0; }
+      .priority, .topic, .validation { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; font-size: .68rem; font-weight: 800; text-transform: capitalize; white-space: nowrap; }
+      .priority-must { color: #8c2930; background: #ffe7e6; }
+      .priority-should { color: var(--accent); background: var(--accent-soft); }
+      .priority-could, .priority-unknown { color: var(--muted); background: #edf1f5; }
+      .story { margin: 10px 0 13px; color: var(--muted); }
+      .story strong { color: var(--ink); }
+      .relationship { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; padding-top: 11px; border-top: 1px solid var(--line); }
+      .relationship .field-label { margin: 0; }
+      .relationship-values { display: flex; flex-wrap: wrap; gap: 5px 10px; }
+      .relation-link { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .8rem; font-weight: 800; }
+      .criteria-story { color: var(--muted); font-size: .8rem; white-space: nowrap; }
+      .criteria-list { margin-top: 13px; }
+      .topic { color: var(--teal); background: var(--teal-soft); }
+      .validation.needs-validation { color: var(--amber); background: var(--amber-soft); }
+      .validation.reviewed { color: var(--teal); background: var(--teal-soft); }
+      .empty { margin: 0; color: var(--muted); font-style: italic; }
+      .muted { color: var(--muted); }
+      .document-footer { margin-top: 58px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: .72rem; }
+      .document-footer strong { color: var(--ink); }
+
+      @media (max-width: 760px) {
+        .document { width: min(100% - 20px, 1020px); margin-top: 10px; padding: 32px 22px 42px; }
+        .brand-row { align-items: flex-start; flex-direction: column; margin-bottom: 38px; }
+        .meta-grid, .overview-lead, .overview-grid { grid-template-columns: 1fr; }
+        .criteria-story { white-space: normal; }
+      }
+      @media print {
+        @page { size: A4; margin: 15mm 14mm 16mm; }
+        body { background: #fff; }
+        .screen-toolbar, .toc { display: none !important; }
+        .document { width: auto; margin: 0; padding: 0; box-shadow: none; }
+        .document-header { padding-top: 0; }
+        .spec-section { break-before: page; }
+        .spec-section:first-of-type { break-before: auto; }
+        .section-heading { break-after: avoid; }
+        .record, .content-block, .problem-box, .source-idea { box-shadow: none; }
+        a { color: inherit; text-decoration: none; }
+        .brand-row { margin-bottom: 42px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="screen-toolbar">
+      <button class="print-button" type="button" onclick="window.print()">Print / Save as PDF</button>
+    </div>
+    <main class="document">
+      <header class="document-header">
+        <div class="brand-row">
+          <div class="brand"><span class="brand-mark">S</span><span>Specora AI</span></div>
+          <div class="document-kind">Product specification · review draft</div>
+        </div>
+        <p class="eyebrow">Specification export</p>
+        <h1>{{TITLE}}</h1>
+        <p class="subtitle">{{SUMMARY}}</p>
+        <div class="meta-grid">
+          <div class="meta-card"><span class="field-label">Model</span><strong>{{MODEL}}</strong></div>
+          <div class="meta-card"><span class="field-label">Backend</span><strong>{{BACKEND}}</strong></div>
+          <div class="meta-card"><span class="field-label">Schema version</span><strong>{{SCHEMA_VERSION}}</strong></div>
+        </div>
+        {{RAW_IDEA}}
+      </header>
+
+      <nav class="toc" aria-label="Specification sections">
+        <a href="#project-overview">01 · Overview</a>
+        <a href="#functional-requirements">02 · Requirements</a>
+        <a href="#user-stories">03 · Stories</a>
+        <a href="#acceptance-criteria">04 · Acceptance</a>
+        <a href="#non-functional-requirements">05 · Quality</a>
+        <a href="#open-questions">06 · Questions</a>
+        <a href="#assumptions">07 · Assumptions</a>
+      </nav>
+
+      <section id="project-overview" class="spec-section">
+        <div class="section-heading"><span class="section-number">01</span><h2>Project Overview</h2></div>
+        {{OVERVIEW}}
+      </section>
+      <section id="functional-requirements" class="spec-section">
+        <div class="section-heading"><span class="section-number">02</span><h2>Functional Requirements</h2></div>
+        {{FUNCTIONAL_REQUIREMENTS}}
+      </section>
+      <section id="user-stories" class="spec-section">
+        <div class="section-heading"><span class="section-number">03</span><h2>User Stories</h2></div>
+        {{USER_STORIES}}
+      </section>
+      <section id="acceptance-criteria" class="spec-section">
+        <div class="section-heading"><span class="section-number">04</span><h2>Acceptance Criteria</h2></div>
+        {{ACCEPTANCE_CRITERIA}}
+      </section>
+      <section id="non-functional-requirements" class="spec-section">
+        <div class="section-heading"><span class="section-number">05</span><h2>Non-Functional Requirements</h2></div>
+        {{NON_FUNCTIONAL_REQUIREMENTS}}
+      </section>
+      <section id="open-questions" class="spec-section">
+        <div class="section-heading"><span class="section-number">06</span><h2>Open Questions</h2></div>
+        {{OPEN_QUESTIONS}}
+      </section>
+      <section id="assumptions" class="spec-section">
+        <div class="section-heading"><span class="section-number">07</span><h2>Assumptions</h2></div>
+        {{ASSUMPTIONS}}
+      </section>
+
+      <footer class="document-footer"><strong>Specora AI</strong> · A human-reviewed specification draft. Generated content should be validated by the Product Owner before development.</footer>
+    </main>
+  </body>
+</html>

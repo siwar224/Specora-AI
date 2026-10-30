@@ -64,6 +64,7 @@
       .status.error { color: var(--danger); }
       .result { min-width: 0; padding: 28px; }
       .result-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 15px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+      .btn.export { margin-left: auto; color: var(--accent-2); }
       .result-meta { color: var(--muted); font-size: .8rem; text-align: right; }
       .empty { display: grid; min-height: 420px; place-items: center; padding: 30px; color: var(--muted); text-align: center; }
       .empty strong { display: block; margin-bottom: 6px; color: var(--text); font-size: 1.2rem; }
@@ -128,7 +129,11 @@
 
         <section class="panel result">
           <div id="emptyState" class="empty">
-            <div><strong>Your specification will appear here</strong>Enter a product idea and generate a first draft for review.</div>
+            <div>
+              <p class="eyebrow">Specification draft</p>
+              <h2>Ready for your product idea</h2>
+              <p class="muted">Generate a first draft to review the project overview, requirements, user stories, and open questions.</p>
+            </div>
           </div>
           <div id="resultContent" hidden></div>
         </section>

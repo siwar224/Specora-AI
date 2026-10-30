@@ -191,6 +191,13 @@ The initial API can expose:
 | `POST` | `/api/projects/{project_id}/sections/{section}/regenerate` | Regenerate one section |
 | `GET` | `/api/projects/{project_id}/export?format=markdown` | Export Markdown or HTML |
 
+The current review interface also exposes `POST /api/specifications/export`.
+It accepts the current canonical draft and returns a print-optimized HTML
+document. Use `Print / Save as PDF` in that document to create a PDF from the
+browser's native print dialog. The export keeps requirement, user-story, and
+acceptance-criteria IDs visible and linked, and intentionally omits
+`project_overview.scope.in_scope` and `project_overview.scope.out_of_scope`.
+
 The API is provisional and may be adjusted during implementation, but full
 generation and partial regeneration should remain separate operations.
 

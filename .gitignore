@@ -111,3 +111,4 @@ desktop.ini
 .terraform/
 *.pub
 .history
+/test_exports.py
