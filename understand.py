@@ -46,6 +46,9 @@ Rules:
   roles, or technical constraints as facts.
 - If information is missing, record it as an open question or an assumption.
 - Make functional requirements concrete and testable.
+- Prefer these identifier formats: FR-001 for functional requirements,
+  US-001 for user stories, AC-001 for acceptance criteria, NFR-001 for
+  non-functional requirements, Q-001 for questions, and A-001 for assumptions.
 - Give every requirement, user story, acceptance-criteria group,
   non-functional requirement, question, and assumption a unique identifier.
 - Link each acceptance-criteria group to an existing user story using
@@ -280,17 +283,22 @@ def _resolve_client() -> tuple[OpenAI, str]:
 
 
 # ---------------------------------------------------------------------------
-# BLOCK 4 — Defensive validation after the model response
+# BLOCK 4 — Normalization and validation after the model response
 # ---------------------------------------------------------------------------
+#
+# The model is asked to use stable identifiers, but identifiers are application
+# data and must not be trusted blindly. Before validation, Specora rewrites
+# identifiers into canonical section-specific values. This means that a model
+# response using "1" in several sections becomes FR-001, US-001, AC-001, etc.
+# References are rewritten at the same time.
 #
 # OpenAI structured output validates the JSON shape when supported. A local
 # OpenAI-compatible server may not enforce the same schema, so we also perform
-# a small application-level validation. This catches missing top-level
-# sections, duplicate IDs, and broken links between stories and criteria.
+# application-level validation after normalization. This catches missing
+# top-level sections and broken links between stories and criteria.
 #
-# This is intentionally not a second full JSON-schema engine. The canonical
-# schema above remains the source of truth; these checks protect the domain
-# relationships that are especially important to Specora.
+# Normalization is not database normalization. It is a deterministic
+# post-processing step for the LLM response.
 
 _REQUIRED_SECTIONS = (
     "project_overview",
@@ -301,6 +309,92 @@ _REQUIRED_SECTIONS = (
     "open_questions",
     "assumptions",
 )
+
+
+_ID_PREFIXES = {
+    "functional_requirements": "FR",
+    "user_stories": "US",
+    "acceptance_criteria": "AC",
+    "non_functional_requirements": "NFR",
+    "open_questions": "Q",
+    "assumptions": "A",
+}
+
+
+def _reference_value(value: object, mapping: dict[str, str], items: list) -> str:
+    """Resolve a model reference using its original ID or 1-based position."""
+    text = str(value).strip()
+    if text in mapping:
+        return mapping[text]
+
+    # Some models use a numeric position for a reference even when the source
+    # item used a different ID. Resolve that position deterministically.
+    if text.isdigit():
+        position = int(text) - 1
+        if 0 <= position < len(items):
+            return items[position]["id"]
+    return text
+
+
+def _normalize_specification(data: object) -> object:
+    """Give every Specora item a canonical ID and repair known references."""
+    if not isinstance(data, dict):
+        return data
+
+    # Normalize target-user IDs as well. They are scoped to the overview and
+    # do not participate in the cross-section requirement graph.
+    overview = data.get("project_overview")
+    if isinstance(overview, dict) and isinstance(overview.get("target_users"), list):
+        for index, user in enumerate(overview["target_users"], start=1):
+            if isinstance(user, dict):
+                user["id"] = f"USER-{index:03d}"
+
+    id_maps: dict[str, dict[str, str]] = {}
+    normalized_items: dict[str, list] = {}
+
+    for section, prefix in _ID_PREFIXES.items():
+        items = data.get(section)
+        if not isinstance(items, list):
+            continue
+
+        mapping: dict[str, str] = {}
+        for index, item in enumerate(items, start=1):
+            if not isinstance(item, dict):
+                continue
+            original_id = str(item.get("id", "")).strip()
+            canonical_id = f"{prefix}-{index:03d}"
+            item["id"] = canonical_id
+            if original_id and original_id not in mapping:
+                mapping[original_id] = canonical_id
+            mapping[canonical_id] = canonical_id
+
+        id_maps[section] = mapping
+        normalized_items[section] = items
+
+    requirement_map = id_maps.get("functional_requirements", {})
+    story_map = id_maps.get("user_stories", {})
+    requirements = normalized_items.get("functional_requirements", [])
+    stories = normalized_items.get("user_stories", [])
+
+    for story in stories:
+        if not isinstance(story, dict):
+            continue
+        related_ids = story.get("related_requirement_ids")
+        if isinstance(related_ids, list):
+            story["related_requirement_ids"] = [
+                _reference_value(value, requirement_map, requirements)
+                for value in related_ids
+            ]
+
+    for criteria_group in normalized_items.get("acceptance_criteria", []):
+        if not isinstance(criteria_group, dict):
+            continue
+        if "user_story_id" in criteria_group:
+            criteria_group["user_story_id"] = _reference_value(
+                criteria_group["user_story_id"], story_map, stories
+            )
+
+    return data
 
 
 def _validate_specification(data: object) -> dict:
@@ -435,6 +529,7 @@ def understand(raw_idea: str) -> dict:
         }
 
     try:
+        specification = _normalize_specification(specification)
         specification = _validate_specification(specification)
     except ValueError as exc:
         return {
@@ -449,5 +544,7 @@ def understand(raw_idea: str) -> dict:
         "generation_metadata": {
             "backend": active_backend(),
             "model": model,
+            "schema_version": "1.0",
+            "ids_normalized": True,
         },
     }

@@ -133,6 +133,8 @@ regeneration must remain explicit.
 The LLM adapter must:
 
 - request structured JSON rather than unconstrained prose;
+- normalize generated identifiers and references in application code before
+  validation;
 - validate the response against the canonical schema;
 - identify the model and prompt/schema version in metadata;
 - return actionable errors without destroying the previous draft;
@@ -162,6 +164,9 @@ be committed to the repository.
 - Keep user edits distinguishable from generated text when the UI supports it.
 - Every generated acceptance criterion should be observable or verifiable; avoid
   vague wording such as “works well” or “is user-friendly”.
+- Identifier normalization must happen before relationship validation. Use
+  section-specific prefixes (`FR`, `US`, `AC`, `NFR`, `Q`, `A`) and preserve
+  all links when rewriting IDs.
 - Maintain backward-compatible migrations for persisted project data.
 
 ## 7. Change workflow for agents

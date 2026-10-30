@@ -66,6 +66,10 @@ Project creation
    ↓
 LLM analysis with a versioned structured schema
    ↓
+Normalization of identifiers and references
+   ↓
+Schema and relationship validation
+   ↓
 Six-section specification draft
    ↓
 Human review and edits
@@ -195,12 +199,38 @@ generation and partial regeneration should remain separate operations.
 The generation layer should:
 
 - return structured JSON validated against the canonical schema;
+- normalize identifiers after generation into stable prefixes such as `FR-001`,
+  `US-001`, `AC-001`, `NFR-001`, `Q-001`, and `A-001`;
+- normalize references such as `user_story_id` and
+  `related_requirement_ids` after identifiers are assigned;
+- validate the normalized document before returning it to the API;
 - preserve uncertainty as assumptions or open questions;
 - produce traceable identifiers for requirements and user stories;
 - generate acceptance criteria that are observable and testable;
 - avoid inventing business decisions without marking them as assumptions;
 - record model, prompt/schema version, timestamp, and failures;
 - preserve the last valid draft if a request fails.
+
+### Normalization and validation
+
+The LLM is responsible for proposing the content, but the application owns the
+document's identifiers and relationships. After the LLM response, Specora
+normalizes each generated item into a section-specific identifier:
+
+```text
+Functional Requirements       FR-001
+User Stories                  US-001
+Acceptance Criteria           AC-001
+Non-Functional Requirements   NFR-001
+Open Questions                Q-001
+Assumptions                   A-001
+```
+
+References are rewritten at the same time. For example, a criterion referring
+to `user_story_id: "1"` becomes `user_story_id: "US-001"`. Only after this
+normalization step does the backend validate duplicate identifiers and broken
+relationships. This makes the system resilient when a model uses simple or
+repeated numeric IDs.
 
 ## Project status
 
