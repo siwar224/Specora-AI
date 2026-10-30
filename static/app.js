@@ -1,290 +1,259 @@
-// Voice-to-Insight Agent — frontend logic.
-// Records mic audio via MediaRecorder, converts it to 16 kHz mono WAV *in the
-// browser* (so the backend needs no ffmpeg), then walks the pipeline stage by
-// stage so a live audience can watch each step complete.
-
 const els = {
+  ideaInput: document.getElementById("ideaInput"),
+  generateBtn: document.getElementById("generateBtn"),
   recordBtn: document.getElementById("recordBtn"),
-  recDot: document.getElementById("recDot"),
-  recStatus: document.getElementById("recStatus"),
-  meter: document.getElementById("meter"),
-  textFallback: document.getElementById("textFallback"),
-  runTextBtn: document.getElementById("runTextBtn"),
+  stopBtn: document.getElementById("stopBtn"),
+  status: document.getElementById("status"),
   samples: document.getElementById("samples"),
-  pipeline: document.getElementById("pipeline"),
-  tasks: document.getElementById("tasks"),
-  errorBanner: document.getElementById("errorBanner"),
+  emptyState: document.getElementById("emptyState"),
+  resultContent: document.getElementById("resultContent"),
+  healthDot: document.getElementById("healthDot"),
+  healthText: document.getElementById("healthText"),
 };
 
-// Sample phrases for the fallback path (no mic needed).
 const SAMPLES = [
-  "Remind Sarah to send the Q3 report by next Friday, it's high priority.",
-  "اكتبلي بوست عن الإنجازات تبعنا هالشهر للينكد إن، بطريقة احترافية.",
-  "Summarize this: we met the client, they liked the demo, but want pricing options and a follow-up call next week.",
-  "ذكرني بكرا اتصل بالمحاسب، أولوية متوسطة.",
+  "Je souhaite créer une application de réservation de salles de sport. Les clients doivent consulter les séances, réserver, payer leur abonnement et recevoir une confirmation. Les responsables pourront gérer les séances et les réservations.",
+  "Je veux une plateforme pour aider les petites entreprises à suivre leurs dépenses, importer des factures et recevoir des alertes quand un budget est dépassé.",
+  "Je souhaite créer une application mobile pour organiser des sorties entre amis, proposer des activités, voter pour une date et envoyer un rappel aux participants.",
 ];
 
-// ---------- Error banner ----------
-function showError(msg) {
-  els.errorBanner.style.display = "block";
-  els.errorBanner.textContent = "⚠ " + msg;
-}
-function clearError() {
-  els.errorBanner.style.display = "none";
-  els.errorBanner.textContent = "";
-}
-
-// ---------- Pipeline rendering ----------
-// Rebuilds the pipeline panel from a stage state object each time it changes.
-function renderPipeline(state) {
-  const s = (name, cls, label, bodyHtml) =>
-    `<div class="stage ${cls}"><div class="label">${label}</div><div class="body">${bodyHtml}</div></div>`;
-
-  let html = "";
-  // Transcript stage (skipped when using text fallback)
-  if (state.transcript !== undefined) {
-    if (state.transcript.status === "active")
-      html += s("transcript", "active", "① Transcript", "<em>Transcribing…</em>");
-    else if (state.transcript.status === "done")
-      html += s("transcript", "done", `① Transcript <span class="locale">(${state.transcript.locale || "?"})</span>`,
-        escapeHtml(state.transcript.text || "(empty)"));
-  }
-
-  // Classification stage
-  if (state.classify) {
-    if (state.classify.status === "active")
-      html += s("classify", "active", "② Classification", "<em>Understanding…</em>");
-    else if (state.classify.status === "done") {
-      const intent = state.classify.intent;
-      html += s("classify", "done", "② Classification",
-        `<span class="badge ${intent}">${intent}</span>` +
-        `<pre>${escapeHtml(JSON.stringify(state.classify.data, null, 2))}</pre>`);
-    } else if (state.classify.status === "error") {
-      html += s("classify", "err", "② Classification",
-        `<span class="badge error">error</span><pre>${escapeHtml(state.classify.error)}</pre>`);
-    }
-  }
-
-  // Action stage
-  if (state.action) {
-    html += s("action", "done", "③ Action", renderAction(state.action));
-  }
-
-  els.pipeline.innerHTML = html || '<p class="empty">Record or run text to see the chain light up.</p>';
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[char]);
 }
 
-function renderAction(action) {
-  if (action.type === "task_added") {
-    const t = action.task;
-    const notion = action.notion && action.notion.pushed
-      ? '<div class="meta">✓ Pushed to Notion</div>'
-      : `<div class="meta">Notion: ${escapeHtml((action.notion && action.notion.reason) || "n/a")}</div>`;
-    return `✅ Task added: <strong>${escapeHtml(t.title)}</strong>${notion}`;
-  }
-  if (action.type === "caption_generated") {
-    return `📝 Caption for <strong>${escapeHtml(action.platform)}</strong> (${escapeHtml(action.tone || "")}):` +
-      `<pre>${escapeHtml(action.caption)}</pre>`;
-  }
-  if (action.type === "summary_shown") {
-    const pts = (action.key_points || []).map((p) => `<li>${escapeHtml(p)}</li>`).join("");
-    return `🧾 ${escapeHtml(action.summary_text)}<ul>${pts}</ul>`;
-  }
-  return escapeHtml(JSON.stringify(action));
+function list(items, empty = "No information generated.") {
+  if (!Array.isArray(items) || items.length === 0) return `<span class="empty-list">${empty}</span>`;
+  return `<ul class="list">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
 }
 
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function section(id, number, title, body) {
+  return `<article id="${id}" class="spec-section">
+    <div class="section-heading"><span class="section-number">${number}</span><h2>${title}</h2></div>
+    ${body}
+  </article>`;
 }
 
-// ---------- The pipeline driver ----------
-// Runs classify + action given a transcript, updating `state` as it goes.
-async function runUnderstand(transcript, state) {
-  state.classify = { status: "active" };
-  renderPipeline(state);
+function renderOverview(overview) {
+  const users = (overview.target_users || []).map((user) => `
+    <div class="item">
+      <div class="item-title"><h3>${escapeHtml(user.name)}</h3><span class="pill green">${escapeHtml(user.id)}</span></div>
+      <div class="muted">${escapeHtml(user.description)}</div>
+    </div>`).join("");
 
-  let res;
+  return `<div class="overview-grid">
+    <div class="field"><div class="label">Proposed name</div><div class="value">${escapeHtml(overview.proposed_name)}</div></div>
+    <div class="field"><div class="label">Summary</div><div class="value">${escapeHtml(overview.summary)}</div></div>
+    <div class="field full"><div class="label">Problem statement</div><div class="value">${escapeHtml(overview.problem_statement)}</div></div>
+    <div class="field"><div class="label">Goals</div>${list(overview.goals)}</div>
+    <div class="field"><div class="label">In scope</div>${list(overview.scope?.in_scope)}</div>
+    <div class="field"><div class="label">Out of scope</div>${list(overview.scope?.out_of_scope)}</div>
+    <div class="field full"><div class="label">Target users</div><div class="cards">${users || '<span class="empty-list">No target users generated.</span>'}</div></div>
+  </div>`;
+}
+
+function renderFunctionalRequirements(items) {
+  if (!items?.length) return `<span class="empty-list">No functional requirements generated.</span>`;
+  return `<div class="cards">${items.map((item) => `
+    <div class="item">
+      <div class="item-title"><h3>${escapeHtml(item.id)} · ${escapeHtml(item.title)}</h3><span class="pill">${escapeHtml(item.priority)}</span></div>
+      <p>${escapeHtml(item.description)}</p>
+      <div class="muted">Actor: ${escapeHtml(item.actor)}</div>
+    </div>`).join("")}</div>`;
+}
+
+function renderUserStories(items) {
+  if (!items?.length) return `<span class="empty-list">No user stories generated.</span>`;
+  return `<div class="cards">${items.map((item) => `
+    <div class="item">
+      <div class="item-title"><h3>${escapeHtml(item.id)} · ${escapeHtml(item.feature)}</h3><span class="pill green">story</span></div>
+      <div class="story-format"><b>As a</b> ${escapeHtml(item.as_a)}, <b>I want</b> ${escapeHtml(item.i_want)}, <b>so that</b> ${escapeHtml(item.so_that)}.</div>
+      <div class="muted" style="margin-top:9px">Requirements: ${escapeHtml((item.related_requirement_ids || []).join(", ") || "none")}</div>
+    </div>`).join("")}</div>`;
+}
+
+function renderAcceptanceCriteria(items) {
+  if (!items?.length) return `<span class="empty-list">No acceptance criteria generated.</span>`;
+  return `<div class="cards">${items.map((item) => `
+    <div class="item">
+      <div class="item-title"><h3>${escapeHtml(item.id)}</h3><span class="pill green">${escapeHtml(item.user_story_id)}</span></div>
+      ${list(item.criteria)}
+    </div>`).join("")}</div>`;
+}
+
+function renderNonFunctionalRequirements(items) {
+  if (!items?.length) return `<span class="empty-list">No non-functional requirements generated.</span>`;
+  return `<div class="cards">${items.map((item) => `
+    <div class="item">
+      <div class="item-title"><h3>${escapeHtml(item.id)} · ${escapeHtml(item.category)}</h3><span class="pill">${escapeHtml(item.priority)}</span></div>
+      <p>${escapeHtml(item.description)}</p>
+    </div>`).join("")}</div>`;
+}
+
+function renderQuestions(items) {
+  if (!items?.length) return `<span class="empty-list">No open questions generated.</span>`;
+  return `<div class="cards">${items.map((item) => `
+    <div class="item">
+      <div class="item-title"><h3>${escapeHtml(item.id)}</h3><span class="pill amber">${escapeHtml(item.related_area)}</span></div>
+      <div>${escapeHtml(item.question)}</div>
+    </div>`).join("")}</div>`;
+}
+
+function renderAssumptions(items) {
+  if (!items?.length) return `<span class="empty-list">No assumptions generated.</span>`;
+  return `<div class="cards">${items.map((item) => `
+    <div class="item">
+      <div class="item-title"><h3>${escapeHtml(item.id)}</h3><span class="pill amber">${item.needs_validation ? "Needs validation" : "Reviewed"}</span></div>
+      <div>${escapeHtml(item.statement)}</div>
+    </div>`).join("")}</div>`;
+}
+
+function renderSpecification(response) {
+  const spec = response.data;
+  const overview = spec.project_overview || {};
+  const metadata = response.generation_metadata || {};
+  const sectionLinks = [
+    ["project-overview", "Overview"],
+    ["functional-requirements", "Functional"],
+    ["user-stories", "Stories"],
+    ["acceptance-criteria", "Acceptance"],
+    ["non-functional-requirements", "Non-functional"],
+    ["open-questions", "Questions"],
+    ["assumptions", "Assumptions"],
+  ];
+
+  els.resultContent.innerHTML = `
+    <div class="result-head">
+      <div><p class="eyebrow">Specification draft</p><h2>${escapeHtml(overview.proposed_name || "Untitled project")}</h2><p class="muted">Review the generated content before using it for development.</p></div>
+      <div class="result-meta">Backend: ${escapeHtml(metadata.backend || "unknown")}<br />Model: ${escapeHtml(metadata.model || "unknown")}</div>
+    </div>
+    <nav class="section-nav">${sectionLinks.map(([id, label]) => `<a href="#${id}">${label}</a>`).join("")}</nav>
+    ${section("project-overview", "1", "Project Overview", renderOverview(overview))}
+    ${section("functional-requirements", "2", "Functional Requirements", renderFunctionalRequirements(spec.functional_requirements))}
+    ${section("user-stories", "3", "User Stories", renderUserStories(spec.user_stories))}
+    ${section("acceptance-criteria", "4", "Acceptance Criteria", renderAcceptanceCriteria(spec.acceptance_criteria))}
+    ${section("non-functional-requirements", "5", "Non-Functional Requirements", renderNonFunctionalRequirements(spec.non_functional_requirements))}
+    ${section("open-questions", "6", "Open Questions", renderQuestions(spec.open_questions))}
+    ${section("assumptions", "A", "Assumptions", renderAssumptions(spec.assumptions))}
+  `;
+  els.emptyState.hidden = true;
+  els.resultContent.hidden = false;
+}
+
+function setStatus(message, isError = false) {
+  els.status.textContent = message;
+  els.status.classList.toggle("error", isError);
+}
+
+async function generateSpecification() {
+  const rawIdea = els.ideaInput.value.trim();
+  if (!rawIdea) {
+    setStatus("Write a product idea first.", true);
+    els.ideaInput.focus();
+    return;
+  }
+
+  els.generateBtn.disabled = true;
+  setStatus("Generating your specification…");
   try {
-    const r = await fetch("/api/understand", {
+    const response = await fetch("/api/specifications/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transcript }),
+      body: JSON.stringify({ raw_idea: rawIdea }),
     });
-    res = await r.json();
-  } catch (e) {
-    state.classify = { status: "error", error: "Network error calling /api/understand: " + e.message };
-    renderPipeline(state);
-    showError(state.classify.error);
-    return;
+    const payload = await response.json();
+    if (!response.ok || payload.type === "error") {
+      throw new Error(payload.error || "Specification generation failed.");
+    }
+    renderSpecification(payload);
+    setStatus("Specification generated. Review the questions and assumptions.");
+  } catch (error) {
+    setStatus(error.message, true);
+  } finally {
+    els.generateBtn.disabled = false;
   }
-
-  if (res.intent === "error") {
-    state.classify = { status: "error", error: res.error + (res.raw ? "\n" + JSON.stringify(res.raw, null, 2) : "") };
-    renderPipeline(state);
-    showError("Understanding failed: " + res.error);
-    return;
-  }
-
-  state.classify = { status: "done", intent: res.intent, data: res.data };
-  state.action = res.action;
-  renderPipeline(state);
-
-  if (res.intent === "task") loadTasks();
 }
 
-// ---------- Text fallback path ----------
-async function runFromText() {
-  const text = els.textFallback.value.trim();
-  if (!text) { showError("Type or pick a sample first."); return; }
-  clearError();
-  const state = {};
-  // No transcript stage — we already have text.
-  await runUnderstand(text, state);
+function renderSamples() {
+  els.samples.innerHTML = SAMPLES.map((sample, index) =>
+    `<button class="sample" data-sample="${index}">Sample ${index + 1}<br /><span>${escapeHtml(sample)}</span></button>`
+  ).join("");
+  els.samples.querySelectorAll("[data-sample]").forEach((button) => {
+    button.addEventListener("click", () => {
+      els.ideaInput.value = SAMPLES[Number(button.dataset.sample)];
+      setStatus("Example loaded. You can edit it or generate it now.");
+      els.ideaInput.focus();
+    });
+  });
 }
 
-// ---------- Mic recording -> WAV -> transcribe -> understand ----------
+async function checkHealth() {
+  try {
+    const response = await fetch("/api/health");
+    const health = await response.json();
+    els.healthDot.className = `health-dot ${health.ok ? "ok" : "bad"}`;
+    els.healthText.textContent = health.llm_configured
+      ? `API ready · ${health.llm_backend}`
+      : `API ready · configure ${health.llm_backend}`;
+  } catch (error) {
+    els.healthDot.className = "health-dot bad";
+    els.healthText.textContent = "API unavailable";
+  }
+}
+
 let mediaRecorder = null;
-let chunks = [];
-let audioCtx = null;
-let analyser = null;
-let meterRAF = null;
-
-function buildMeter() {
-  els.meter.innerHTML = "";
-  for (let i = 0; i < 16; i++) els.meter.appendChild(document.createElement("span"));
-}
-buildMeter();
-
-function animateMeter() {
-  if (!analyser) return;
-  const data = new Uint8Array(analyser.frequencyBinCount);
-  analyser.getByteFrequencyData(data);
-  const bars = els.meter.children;
-  const step = Math.floor(data.length / bars.length);
-  for (let i = 0; i < bars.length; i++) {
-    const v = data[i * step] / 255;
-    bars[i].style.height = 4 + v * 36 + "px";
-  }
-  meterRAF = requestAnimationFrame(animateMeter);
-}
+let recordedChunks = [];
 
 async function startRecording() {
-  clearError();
-  let stream;
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  } catch (e) {
-    showError("Microphone access denied or unavailable: " + e.message + "\nUse the text fallback below instead.");
-    return;
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recordedChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size) recordedChunks.push(event.data);
+    };
+    mediaRecorder.onstop = () => uploadRecording(stream);
+    mediaRecorder.start();
+    els.recordBtn.disabled = true;
+    els.stopBtn.disabled = false;
+    setStatus("Recording… press Stop when the idea is complete.");
+  } catch (error) {
+    setStatus(`Microphone unavailable: ${error.message}`, true);
   }
-
-  chunks = [];
-  mediaRecorder = new MediaRecorder(stream);
-  mediaRecorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-  mediaRecorder.onstop = () => onRecordingStopped(stream);
-  mediaRecorder.start();
-
-  // live meter
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  const src = audioCtx.createMediaStreamSource(stream);
-  analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 64;
-  src.connect(analyser);
-  animateMeter();
-
-  els.recordBtn.classList.add("recording");
-  els.recordBtn.textContent = "■ Stop";
-  els.recDot.classList.add("live");
-  els.recStatus.textContent = "Recording…";
 }
 
-function stopRecording() {
-  if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
-  els.recordBtn.classList.remove("recording");
-  els.recordBtn.textContent = "● Record";
-  els.recDot.classList.remove("live");
-  els.recStatus.textContent = "Processing…";
-  if (meterRAF) cancelAnimationFrame(meterRAF);
-}
-
-async function onRecordingStopped(stream) {
-  stream.getTracks().forEach((t) => t.stop());
-  if (audioCtx) { audioCtx.close(); audioCtx = null; analyser = null; }
-
-  const mime = mediaRecorder.mimeType || "audio/webm";
-  const blob = new Blob(chunks, { type: mime });
-
-  const state = { transcript: { status: "active" } };
-  renderPipeline(state);
-
-  // OpenAI's transcription API accepts the recorded audio directly (webm/mp4/…),
-  // so we send the raw blob — no in-browser conversion needed. Pick a filename
-  // extension that matches the recorder's mime type so the API infers the format.
-  const ext = mime.includes("mp4") || mime.includes("m4a") ? "mp4"
-    : mime.includes("ogg") ? "ogg"
-    : mime.includes("wav") ? "wav"
-    : "webm";
+async function uploadRecording(stream) {
+  stream.getTracks().forEach((track) => track.stop());
+  els.recordBtn.disabled = false;
+  els.stopBtn.disabled = true;
+  setStatus("Transcribing recording…");
+  const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || "audio/webm" });
   const form = new FormData();
-  form.append("audio", blob, "recording." + ext);
-  let res;
+  form.append("audio", blob, "idea.webm");
   try {
-    const r = await fetch("/api/transcribe", { method: "POST", body: form });
-    res = await r.json();
-  } catch (e) {
-    showError("Network error calling /api/transcribe: " + e.message);
-    els.recStatus.textContent = "Idle";
-    return;
-  }
-
-  els.recStatus.textContent = "Idle";
-
-  if (res.error) {
-    state.transcript = undefined;
-    renderPipeline(state);
-    showError("Transcription failed: " + res.error);
-    return;
-  }
-
-  state.transcript = { status: "done", text: res.transcript, locale: res.locale };
-  renderPipeline(state);
-
-  // Feed the transcript into the understanding + action stages.
-  await runUnderstand(res.transcript, state);
-}
-
-// ---------- Task list ----------
-async function loadTasks() {
-  try {
-    const r = await fetch("/api/tasks");
-    const { tasks } = await r.json();
-    if (!tasks.length) { els.tasks.innerHTML = '<p class="empty">No tasks yet.</p>'; return; }
-    els.tasks.innerHTML = tasks.map((t) => `
-      <div class="task-item">
-        <div class="t">${escapeHtml(t.title)}</div>
-        <div class="meta">
-          <span class="pri ${t.priority}">${t.priority}</span>
-          ${t.owner ? " · 👤 " + escapeHtml(t.owner) : ""}
-          ${t.due_date ? " · 📅 " + escapeHtml(t.due_date) : ""}
-        </div>
-      </div>`).join("");
-  } catch (e) {
-    showError("Could not load tasks: " + e.message);
+    const response = await fetch("/api/transcribe", { method: "POST", body: form });
+    const payload = await response.json();
+    if (!response.ok || payload.type === "error") throw new Error(payload.error || "Transcription failed.");
+    els.ideaInput.value = payload.transcript || "";
+    setStatus("Transcription complete. Review the text, then generate the specification.");
+  } catch (error) {
+    setStatus(error.message, true);
   }
 }
 
-// ---------- Wire up ----------
-els.recordBtn.addEventListener("click", () => {
-  if (mediaRecorder && mediaRecorder.state === "recording") stopRecording();
-  else startRecording();
+els.generateBtn.addEventListener("click", generateSpecification);
+els.ideaInput.addEventListener("keydown", (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key === "Enter") generateSpecification();
 });
-els.runTextBtn.addEventListener("click", runFromText);
-
-SAMPLES.forEach((text, i) => {
-  const b = document.createElement("button");
-  b.textContent = "Sample " + (i + 1);
-  b.title = text;
-  b.addEventListener("click", () => { els.textFallback.value = text; });
-  els.samples.appendChild(b);
+els.recordBtn.addEventListener("click", startRecording);
+els.stopBtn.addEventListener("click", () => {
+  if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
 });
 
-loadTasks();
+renderSamples();
+checkHealth();
