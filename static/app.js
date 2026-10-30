@@ -12,9 +12,9 @@ const els = {
 };
 
 const SAMPLES = [
-  "Je souhaite créer une application de réservation de salles de sport. Les clients doivent consulter les séances, réserver, payer leur abonnement et recevoir une confirmation. Les responsables pourront gérer les séances et les réservations.",
-  "Je veux une plateforme pour aider les petites entreprises à suivre leurs dépenses, importer des factures et recevoir des alertes quand un budget est dépassé.",
-  "Je souhaite créer une application mobile pour organiser des sorties entre amis, proposer des activités, voter pour une date et envoyer un rappel aux participants.",
+  "I want to build a gym-room booking application. Customers should browse sessions, reserve a spot, pay for their subscription, and receive a confirmation. Managers should be able to manage sessions and bookings.",
+  "I want a platform that helps small businesses track expenses, import invoices, and receive alerts when a budget is exceeded.",
+  "I want to create a mobile app for organizing group activities, suggesting options, voting on a date, and reminding participants.",
 ];
 
 function escapeHtml(value) {
@@ -51,8 +51,6 @@ function renderOverview(overview) {
     <div class="field"><div class="label">Summary</div><div class="value">${escapeHtml(overview.summary)}</div></div>
     <div class="field full"><div class="label">Problem statement</div><div class="value">${escapeHtml(overview.problem_statement)}</div></div>
     <div class="field"><div class="label">Goals</div>${list(overview.goals)}</div>
-    <div class="field"><div class="label">In scope</div>${list(overview.scope?.in_scope)}</div>
-    <div class="field"><div class="label">Out of scope</div>${list(overview.scope?.out_of_scope)}</div>
     <div class="field full"><div class="label">Target users</div><div class="cards">${users || '<span class="empty-list">No target users generated.</span>'}</div></div>
   </div>`;
 }
