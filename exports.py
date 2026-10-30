@@ -235,9 +235,6 @@ def render_specification_html(
         "{{TITLE}}": _escape(title),
         "{{SUMMARY}}": _escape(summary),
         "{{RAW_IDEA}}": raw_idea_markup,
-        "{{MODEL}}": _escape(metadata.get("model"), "Not recorded"),
-        "{{BACKEND}}": _escape(metadata.get("backend"), "Not recorded"),
-        "{{SCHEMA_VERSION}}": _escape(metadata.get("schema_version"), "1.0"),
         "{{OVERVIEW}}": _render_overview(overview),
         "{{FUNCTIONAL_REQUIREMENTS}}": _render_functional_requirements(
             specification.get("functional_requirements") or []
