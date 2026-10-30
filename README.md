@@ -202,15 +202,10 @@ The generation layer should:
 - record model, prompt/schema version, timestamp, and failures;
 - preserve the last valid draft if a request fails.
 
-## Repository status
+## Project status
 
-This repository started from an earlier Voice Insight project. Existing files
-such as speech-to-text or voice-understanding modules are considered legacy
-material while Specora is being rebuilt. They should only be reused when their
-behavior fits the Specora domain and after the relevant boundaries are defined.
-
-The product documentation in this README and the rules in `AGENTS.md` describe
-the intended Specora direction independently of that inherited code.
+Specora AI is an early-stage product. The product documentation in this README
+and the rules in `AGENTS.md` define the intended direction for the application.
 
 ## Development roadmap
 

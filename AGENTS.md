@@ -10,11 +10,6 @@ idea into a reviewable, development-ready specification with the assistance of
 an LLM. The result is a draft to be reviewed by a human Product Owner, not an
 automatically validated specification.
 
-The current repository may contain files inherited from the earlier Voice
-Insight project. Those files are migration material only. Do not use their
-existing behavior, naming, or architecture as the product definition for
-Specora AI.
-
 ## 2. Product principles
 
 - Human review is mandatory. The LLM proposes; the user validates, edits, and
@@ -174,8 +169,7 @@ be committed to the repository.
 Before changing code:
 
 1. Read this file and `README.md`.
-2. Inspect the relevant files and identify whether they are Specora code or
-   legacy Voice Insight code.
+2. Inspect the relevant files and confirm how they fit the Specora domain.
 3. State the smallest coherent change that satisfies the request.
 4. Preserve unrelated user changes.
 
