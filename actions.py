@@ -24,7 +24,8 @@ def build_specification_response(raw_idea: str, result: dict[str, Any]) -> dict[
 
     Keeping this shaping step outside the LLM module leaves `understand.py`
     responsible only for generation and validation, while the API receives a
-    complete artifact that can later be persisted or versioned.
+    complete artifact that can be reviewed, exported, or versioned by a future
+    project-management layer.
     """
     if result.get("type") == "error":
         return result

@@ -55,7 +55,12 @@
       .btn { border: 1px solid var(--line); border-radius: 11px; padding: 10px 14px; color: var(--text); background: var(--panel-soft); transition: transform .15s, border-color .15s, background .15s; }
       .btn:hover { transform: translateY(-1px); border-color: var(--accent); }
       .btn.primary { border-color: transparent; color: #11152a; background: linear-gradient(135deg, var(--accent), #c4bbff); font-weight: 800; }
-      .btn.voice { color: var(--accent-2); }
+      .btn.recorder { display: inline-flex; align-items: center; gap: 9px; min-width: 154px; color: var(--accent-2); }
+      .record-icon { width: 11px; height: 11px; border-radius: 50%; background: #f25562; box-shadow: 0 0 0 4px rgba(242, 85, 98, .13), 0 0 14px rgba(242, 85, 98, .75); }
+      .record-timer { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; font-size: .8rem; }
+      .btn.recorder.is-recording { border-color: rgba(242, 85, 98, .65); color: #ffd7db; background: rgba(130, 31, 48, .28); }
+      .btn.recorder.is-recording .record-icon { border-radius: 3px; background: #ff6b76; box-shadow: 0 0 0 4px rgba(242, 85, 98, .13), 0 0 18px rgba(242, 85, 98, .9); animation: recording-pulse 1.2s ease-in-out infinite; }
+      @keyframes recording-pulse { 50% { opacity: .45; transform: scale(.78); } }
       .btn:disabled { cursor: wait; opacity: .55; transform: none; }
       .sample-list { display: grid; gap: 8px; margin-top: 18px; }
       .sample { width: 100%; border: 1px solid var(--line); border-radius: 11px; padding: 10px 12px; color: var(--muted); background: transparent; text-align: left; }
@@ -119,8 +124,11 @@
           <textarea id="ideaInput" placeholder="Example: I want to build a gym-room booking application…"></textarea>
           <div class="actions">
             <button id="generateBtn" class="btn primary">Generate specification</button>
-            <button id="recordBtn" class="btn voice">Record idea</button>
-            <button id="stopBtn" class="btn" disabled>Stop</button>
+            <button id="recordBtn" class="btn recorder" type="button" aria-pressed="false">
+              <span class="record-icon" aria-hidden="true"></span>
+              <span id="recordLabel">Record idea</span>
+              <span id="recordTimer" class="record-timer" hidden>00:00</span>
+            </button>
           </div>
           <div id="status" class="status">Ready.</div>
           <p class="eyebrow" style="margin-top:24px">Try an example</p>

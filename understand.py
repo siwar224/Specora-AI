@@ -297,8 +297,7 @@ def _resolve_client() -> tuple[OpenAI, str]:
 # application-level validation after normalization. This catches missing
 # top-level sections and broken links between stories and criteria.
 #
-# Normalization is not database normalization. It is a deterministic
-# post-processing step for the LLM response.
+# Normalization is a deterministic post-processing step for the LLM response.
 
 _REQUIRED_SECTIONS = (
     "project_overview",

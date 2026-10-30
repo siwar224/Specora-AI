@@ -76,8 +76,6 @@ temp/
 models/
 data/
 *.db
-*.sqlite
-*.sqlite3
 
 # ---- Logs ----
 *.log

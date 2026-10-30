@@ -2,7 +2,8 @@ const els = {
   ideaInput: document.getElementById("ideaInput"),
   generateBtn: document.getElementById("generateBtn"),
   recordBtn: document.getElementById("recordBtn"),
-  stopBtn: document.getElementById("stopBtn"),
+  recordLabel: document.getElementById("recordLabel"),
+  recordTimer: document.getElementById("recordTimer"),
   status: document.getElementById("status"),
   samples: document.getElementById("samples"),
   emptyState: document.getElementById("emptyState"),
@@ -248,6 +249,33 @@ async function checkHealth() {
 
 let mediaRecorder = null;
 let recordedChunks = [];
+let recordingTimer = null;
+let recordingStartedAt = null;
+
+function formatRecordingTime(seconds) {
+  const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
+  const remainder = Math.floor(seconds % 60).toString().padStart(2, "0");
+  return `${minutes}:${remainder}`;
+}
+
+function setRecordingState(isRecording) {
+  els.recordBtn.classList.toggle("is-recording", isRecording);
+  els.recordBtn.setAttribute("aria-pressed", String(isRecording));
+  els.recordLabel.textContent = isRecording ? "Stop recording" : "Record idea";
+  els.recordTimer.hidden = !isRecording;
+  if (!isRecording) {
+    window.clearInterval(recordingTimer);
+    recordingTimer = null;
+    recordingStartedAt = null;
+    els.recordTimer.textContent = "00:00";
+  }
+}
+
+function updateRecordingTimer() {
+  if (recordingStartedAt === null) return;
+  const elapsed = (Date.now() - recordingStartedAt) / 1000;
+  els.recordTimer.textContent = formatRecordingTime(elapsed);
+}
 
 async function startRecording() {
   try {
@@ -257,20 +285,23 @@ async function startRecording() {
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size) recordedChunks.push(event.data);
     };
-    mediaRecorder.onstop = () => uploadRecording(stream);
+    mediaRecorder.onstop = () => {
+      setRecordingState(false);
+      uploadRecording(stream);
+    };
     mediaRecorder.start();
-    els.recordBtn.disabled = true;
-    els.stopBtn.disabled = false;
-    setStatus("Recording… press Stop when the idea is complete.");
+    recordingStartedAt = Date.now();
+    recordingTimer = window.setInterval(updateRecordingTimer, 500);
+    setRecordingState(true);
+    setStatus("Recording… click Stop recording when the idea is complete.");
   } catch (error) {
+    setRecordingState(false);
     setStatus(`Microphone unavailable: ${error.message}`, true);
   }
 }
 
 async function uploadRecording(stream) {
   stream.getTracks().forEach((track) => track.stop());
-  els.recordBtn.disabled = false;
-  els.stopBtn.disabled = true;
   setStatus("Transcribing recording…");
   const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || "audio/webm" });
   const form = new FormData();
@@ -290,9 +321,12 @@ els.generateBtn.addEventListener("click", generateSpecification);
 els.ideaInput.addEventListener("keydown", (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key === "Enter") generateSpecification();
 });
-els.recordBtn.addEventListener("click", startRecording);
-els.stopBtn.addEventListener("click", () => {
-  if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+els.recordBtn.addEventListener("click", () => {
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+    return;
+  }
+  startRecording();
 });
 
 renderSamples();

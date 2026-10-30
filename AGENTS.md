@@ -18,8 +18,8 @@ automatically validated specification.
   criteria must remain linked and easy to inspect.
 - Structured output comes first. The canonical specification is data with a
   stable schema; rendered Markdown or HTML is a view of that data.
-- Local-first is the default. Projects and drafts should be usable without a
-  remote database. External LLM access must be explicit and configurable.
+- Local-first is the default. Drafts should remain usable without a remote
+  service. External LLM access must be explicit and configurable.
 - Assumptions must be visible. Missing information should become an open
   question or a clearly labelled assumption, never an invisible invention.
 - The application should remain useful when the LLM is unavailable. Users must
@@ -52,7 +52,6 @@ automatically validated specification.
 - Automatic coding or repository generation.
 - Claims that the specification is complete, correct, or formally validated.
 - Multi-user collaboration, permissions, billing, and enterprise tenancy.
-- A mandatory cloud database.
 - Voice transcription as a core requirement. Voice input may be added later as
   an input adapter, but Specora's core domain is idea-to-specification.
 
@@ -80,7 +79,7 @@ The exact JSON schema must be defined in one backend module and reused for:
 
 - LLM structured-output validation.
 - API request/response validation.
-- Local persistence.
+- In-memory draft handling.
 - Export rendering.
 - Tests and fixtures.
 
@@ -111,7 +110,7 @@ Use FastAPI as the application boundary. The backend should separate:
 - domain models and validation;
 - LLM provider integration;
 - prompt and schema versioning;
-- local persistence;
+- in-memory draft handling;
 - Markdown/HTML export.
 
 Routes should be resource-oriented. A likely MVP surface is:
@@ -145,12 +144,12 @@ Prompts must instruct the model to distinguish facts from assumptions and to
 generate testable acceptance criteria. They must not encourage the model to
 hide uncertainty.
 
-### Local storage
+### Draft handling
 
-The default persistence target is a local SQLite database for project metadata
-and versioned specification documents. JSON snapshots may be used for import,
-export, fixtures, or backups. Storage paths must be configurable and must not
-be committed to the repository.
+The current application keeps the active specification draft in memory during
+the review session. HTML/PDF export is explicit and user-triggered. JSON-shaped
+data may be used for fixtures, tests, import, and export; no server-side project
+store is required for this version.
 
 ## 6. Quality rules
 
@@ -160,14 +159,13 @@ be committed to the repository.
 - Never log API keys, full user secrets, or private project content by default.
 - Use deterministic fixtures for domain and export tests.
 - Test the happy path, empty input, malformed LLM output, provider failure,
-  partial regeneration, persistence, and export.
+  partial regeneration, draft retention, and export.
 - Keep user edits distinguishable from generated text when the UI supports it.
 - Every generated acceptance criterion should be observable or verifiable; avoid
   vague wording such as “works well” or “is user-friendly”.
 - Identifier normalization must happen before relationship validation. Use
   section-specific prefixes (`FR`, `US`, `AC`, `NFR`, `Q`, `A`) and preserve
   all links when rewriting IDs.
-- Maintain backward-compatible migrations for persisted project data.
 
 ## 7. Change workflow for agents
 

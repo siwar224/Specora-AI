@@ -104,7 +104,6 @@ Specora is not initially intended to:
 - replace product discovery or stakeholder validation;
 - manage developer tasks or project execution;
 - provide multi-user collaboration and permissions;
-- require a cloud database;
 - make voice transcription part of the core workflow.
 
 Voice input can be added later as an input method, but the central domain is
@@ -131,7 +130,7 @@ FastAPI provides the HTTP API and coordinates the domain services:
 - project and specification models;
 - input validation;
 - LLM orchestration;
-- local persistence;
+- in-memory draft handling;
 - partial regeneration;
 - Markdown and HTML export.
 
@@ -139,17 +138,16 @@ The LLM provider must be isolated behind an adapter so that a cloud provider or
 a local model can be selected through configuration without changing the API
 contract.
 
-### Local storage
+### Draft handling
 
-The default target is a local SQLite database containing projects and versioned
-specification drafts. JSON is useful for fixtures, import/export, and backups.
-Database files, generated exports, and secrets must remain outside version
-control.
+The current application keeps the generated draft in memory while it is being
+reviewed. HTML/PDF export is explicit and user-triggered. There is no server-
+side project store in this version; fixtures and tests use JSON-shaped data.
 
 ## Canonical specification shape
 
 The backend should own one versioned schema shared by the API, LLM validation,
-storage, and exporters. A project should include at least:
+exporters, and tests. A project should include at least:
 
 ```json
 {
@@ -250,7 +248,7 @@ and the rules in `AGENTS.md` define the intended direction for the application.
 
 - define the canonical Pydantic/domain schema;
 - create the FastAPI application boundary;
-- add local SQLite persistence;
+- add in-memory draft handling;
 - add health and project CRUD endpoints;
 - create the minimal HTML review interface.
 
@@ -258,7 +256,7 @@ and the rules in `AGENTS.md` define the intended direction for the application.
 
 - version the system prompt and JSON schema;
 - implement the LLM adapter;
-- validate and persist generated drafts;
+- validate generated drafts and keep the last valid draft during the session;
 - expose generation progress and errors;
 - add section-level regeneration.
 
