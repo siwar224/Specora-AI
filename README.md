@@ -276,4 +276,4 @@ observable, and useful.
 
 ## License
 
-No public license has been selected yet.
+This project is licensed under the [MIT License](LICENSE).
